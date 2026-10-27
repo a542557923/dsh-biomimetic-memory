@@ -1,0 +1,9 @@
+name: astrbot_plugin_biomimetic_memory
+display_name: 仿生分层记忆引擎适配器
+desc: 把 AstrBot 的 QQ 群聊/私聊接入 DSH 仿生分层记忆引擎：自动绿灯唤醒、群友画像、艾宾浩斯遗忘与睡眠整合。
+short_desc: 给 AstrBot 接上 DSH 长期记忆
+author: DSH Local
+version: 0.1.0
+astrbot_version: ">=4.17,<5"
+support_platforms:
+  - aiocqhttp

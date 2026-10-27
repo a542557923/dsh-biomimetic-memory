@@ -1,0 +1,3 @@
+- insert:
+    - id: biomimetic-memory
+      name: '@local/dsh-biomimetic-memory'

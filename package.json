@@ -1,0 +1,39 @@
+{
+  "name": "@local/dsh-biomimetic-memory",
+  "version": "0.1.0",
+  "private": true,
+  "description": "多平台社交角色扮演仿生分层记忆引擎：绿灯唤醒 + 艾宾浩斯遗忘 + 海马体图谱 + 卡片盒链接",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/*.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh-plugin",
+    "memory",
+    "roleplay",
+    "social-bot",
+    "ebbinghaus",
+    "hipporag"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  }
+}

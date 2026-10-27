@@ -1,0 +1,11 @@
+node_modules/
+.tmp-*
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+data/
+docs/
+__pycache__/
+.venv/
+.env

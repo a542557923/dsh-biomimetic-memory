@@ -1,0 +1,85 @@
+{
+  "memory_api": {
+    "description": "记忆桥地址",
+    "type": "string",
+    "default": "http://127.0.0.1:8787/",
+    "hint": "默认连接本机固定端口的记忆桥；留空或填 auto 时按 bridge_port 拼接。"
+  },
+  "bridge_port": {
+    "description": "记忆桥端口",
+    "type": "int",
+    "default": 8787,
+    "slider": {"min": 1024, "max": 65535, "step": 1},
+    "hint": "与 bridge_script 启动的端口一致；修改后请同步 AstrBot 插件与 DSH 侧配置。"
+  },
+  "bridge_script": {
+    "description": "记忆桥脚本路径",
+    "type": "string",
+    "default": "",
+    "hint": "留空则依次读取 DSH_BIOMIMETIC_BRIDGE_SCRIPT 环境变量、仓库内 lib/bridge.mjs；部署到 AstrBot 插件目录时建议显式填写 DSH 插件的 lib/bridge.mjs 绝对路径。"
+  },
+  "db_path": {
+    "description": "记忆库 SQLite 文件",
+    "type": "string",
+    "default": "",
+    "hint": "留空则使用当前用户的 ~/.dsh/data/biomimetic-memory/memory.sqlite。必须与 DSH 插件使用同一个文件。"
+  },
+  "node_path": {
+    "description": "Node 可执行文件",
+    "type": "string",
+    "default": "",
+    "hint": "留空则从 PATH 查找 node（需要 Node 22+，推荐 24）。"
+  },
+  "auto_start_bridge": {
+    "description": "自动启动记忆桥",
+    "type": "bool",
+    "default": true,
+    "hint": "插件加载时若 8787 端口没有桥，则自动用 Node 启动 bridge.mjs；关闭后需手工启动。"
+  },
+  "auto_ingest": {
+    "description": "自动记录群聊/私聊消息",
+    "type": "bool",
+    "default": true
+  },
+  "auto_recall": {
+    "description": "回复前自动召回记忆",
+    "type": "bool",
+    "default": true,
+    "hint": "在 LLM 请求前把绿灯唤唤醒的记忆与当前用户画像注入 system prompt。"
+  },
+  "inject_profile": {
+    "description": "注入当前说话人画像",
+    "type": "bool",
+    "default": true
+  },
+  "recall_limit": {
+    "description": "每次最多召回几张卡",
+    "type": "int",
+    "default": 3,
+    "slider": {"min": 1, "max": 8, "step": 1}
+  },
+  "consolidate_threshold": {
+    "description": "适配器侧攒批阈值",
+    "type": "int",
+    "default": 0,
+    "hint": "0 表示不在适配器触发整合，交给 DSH 插件后台每 10 分钟扫描；大于 0 时攒够该条数立即整合。"
+  },
+  "platform": {
+    "description": "写入记忆库的平台标识",
+    "type": "string",
+    "default": "qq",
+    "options": ["qq", "bilibili", "douyin", "global"]
+  },
+  "platform_allowlist": {
+    "description": "生效的平台适配器",
+    "type": "list",
+    "default": ["aiocqhttp"],
+    "hint": "留空表示所有平台都生效；默认只处理 OneBot v11（NapCat）。"
+  },
+  "timeout": {
+    "description": "记忆桥请求超时（秒）",
+    "type": "float",
+    "default": 8.0,
+    "slider": {"min": 1.0, "max": 30.0, "step": 0.5}
+  }
+}
