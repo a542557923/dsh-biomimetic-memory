@@ -101,3 +101,8 @@ node test/tools.test.mjs    # 3 项：5 个工具注册/渲染、认证 API、�
 - 向量是本地 512 维哈希嵌入（CJK 字/二元/三元组 + 拉丁词），不依赖 Embedding API；它服务于「同义词兜底」，精度低于专业嵌入模型，绿灯词与说话人关联仍是主信号。
 - 未内置 LLM 密钥：`preview` 模式把整合 Prompt 交给当前 Agent 完成；`auto` 模式是纯本地启发式。
 - 面板数据通道优先走 Connection 的鉴权路由 `/api/biomimetic-memory`，同时保留 `/biomimetic-memory/` 裸路由兜底；裸路由要求 `x-biomimetic-memory: 1` 请求头。
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)。
+
