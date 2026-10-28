@@ -24,7 +24,7 @@
 | §3 数据模型 / SQLite Schema | `lib/store.js`：`memory_notes`、`memory_notes_fts`(FTS5 trigram)、`memory_embeddings`、`user_profiles`、`profile_fact_history`、`memory_events`、`meta` |
 | §4.1 艾宾浩斯遗忘 | `lib/scoring.js`：`R = exp(-Δt/(5·S))`，唤醒后 `S += 0.5·(1+importance/10)`，`R<0.15 且 importance<6` 归档 |
 | §4.2 六维混合打分 | `lib/retriever.js`：绿灯 0.30 / 说话人 0.20 / 语义 0.20 / PPR 0.10 / 重要度 0.10 / 保鲜度 0.10，返回逐项分 |
-| §4.2 核心晋升 | `lib/consolidator.js`：`CoreScore = 0.6·imp/10 + 0.4·tanh((S-1)/5)`，Top 8 设为 `constant` |
+| §4.2 核心晋升 | `lib/consolidator.js`：`CoreScore = 0.6·imp/10 + 0.4·tanh((S-1)/5)`；只有 `importance ≥ 6` 且 `CoreScore ≥ 0.35` 才晋升，提示块有 1200 字上限 |
 | §5.1 后台总结 Prompt | `lib/prompt.js` 的 `CONSOLIDATION_SYSTEM_PROMPT`；`memory_consolidate` 的 `preview` 模式把完整模型输入交回给当前 Agent |
 | §5.2 四层消息组装 | `buildRoleplayMessages()` 可直接给 OneBot / B站 / 抖音适配器复用 |
 | §6 目录结构 | `lib/` 按 store / greenlight / retriever / consolidator / prompt_builder 拆分；`lib/http.js` 是面板 API |
@@ -119,12 +119,28 @@ plugin_manager install_bundle target="<本机 tgz 路径>"
 
 `.sqlite-wal` / `.sqlite-shm` 是 SQLite 正常日志文件；备份时复制主文件即可（或先停 Harness）。
 
+## 相关性门槛与加固语义
+
+从 v0.1.1 起，`memory_recall` 不再“只要分数大于 0 就返回”：
+
+- 默认 `min_score = 0.25`、`min_vector = 0.20`（**raw cosine**，不是 `(cos+1)/2`）。
+- 绿灯词命中或说话人匹配时直接通过；否则必须同时满足“向量分 ≥ 0.20”和“最终分 ≥ 0.25”。
+- 无关查询会返回**空数组**，这是正常结果，不是故障。
+- 阈值可用 config 或环境变量覆盖：`DSH_BIOMIMETIC_MIN_SCORE`、`DSH_BIOMIMETIC_MIN_VECTOR`、`DSH_BIOMIMETIC_REQUIRE_SIGNAL=0`。
+- 默认召回会带最近 3 条同群/同串消息作为上下文；只测当前句时传 `includeRecent:false`。
+
+加固语义：
+
+- `memory_recall` 工具默认 `reinforce: true`；
+- HTTP / bridge 的 `recall` 默认也加固，`preview: true` 或 `reinforce: false` 才是只读预览；
+- 面板「唤醒调试」固定走预览，不写库、不加固。
+
 ## 工具速查
 
 | 工具 | 关键参数 | 返回 |
 | --- | --- | --- |
 | `memory_ingest` | `platform`、`scope_id`、`user_id`、`nickname`、`content`；或 `messages[]` | 采纳/仅短期、噪声分与理由、待整合条数、是否达批量阈值 |
-| `memory_recall` | `query`、`platform`、`scope_id`、`user_id`、`limit`、`scope_mode`、`reinforce` | Top-K 卡片 + 六维分项 + 触发词；默认复习加固 |
+| `memory_recall` | `query`、`platform`、`scope_id`、`user_id`、`limit`、`scope_mode`、`reinforce`、`min_score`、`min_vector` | Top-K 卡片 + 六维分项 + 触发词；可能为空；默认复习加固 |
 | `memory_consolidate` | `mode=auto\|preview\|apply`、`platform`、`scope_id`、`payload` | 新模式：卡片/画像/维护结果；preview 模式返回整合 Prompt 与流水 |
 | `memory_profile` | `action=list\|get\|update\|history`、`user_id`、`affection_delta`、`facts` | 画像、好感度、状态覆写历史 |
 | `memory_notes` | `action=list\|search\|get\|archive\|delete\|maintain\|stats` | 卡片管理 / 维护 / 统计 |
@@ -150,18 +166,27 @@ Agent ← 命中「倒立洗头」绿灯卡，附带 2026-10-20 的原话与分�
 
 ```powershell
 cd <本仓库>
-node test/engine.test.mjs   # 11 项：存储、噪声门、遗忘归档、绿灯强唤醒、链接、隔离、批量阈值…
-node test/tools.test.mjs    # 3 项：5 个工具注册/渲染、认证 API、裸路由鉴权
+node test/engine.test.mjs   # 14 项：存储、噪声门、遗忘归档、绿灯强唤醒、链接、隔离、阈值、核心晋升、提示预算…
+node test/tools.test.mjs    # 3 项：5 个工具注册/渲染、认证 API、bridge 加固/阈值的 HTTP 回归
 ```
 
-`docs/dsh-plugin-api-notes.md` 记录了本插件依赖的 Harness 插件 API 取证（工具定义、prompt context 顺序、`/api` fetch 路由、locale、slot 注册）。
+`docs/dsh-plugin-api-notes.md` 是本地 API 取证笔记，不随仓库发布。
 
 ## 已知边界
 
 - 本插件是 **Harness 侧记忆引擎**：它提供工具与面板，不内置 QQ/B站/抖音 长连接。实际接入时由 OneBot/AstrBot 适配器把事件转成 `memory_ingest` 调用（`lib/prompt.js` 的 `buildRoleplayMessages` 可直接用于回复组装）。
-- 向量是本地 512 维哈希嵌入（CJK 字/二元/三元组 + 拉丁词），不依赖 Embedding API；它服务于「同义词兜底」，精度低于专业嵌入模型，绿灯词与说话人关联仍是主信号。
-- 未内置 LLM 密钥：`preview` 模式把整合 Prompt 交给当前 Agent 完成；`auto` 模式是纯本地启发式。
+- 向量是本地 512 维哈希嵌入（CJK 字/二元/三元组 + 拉丁词），不依赖 Embedding API；v0.1.1 起使用 raw cosine（无关文本约 0–0.1，相关文本约 0.4–0.8），但仍低于专业中文嵌入模型，绿灯词与说话人关联仍是主信号。
+- 未内置 LLM 密钥：`preview` 模式把整合 Prompt 交给当前 Agent 完成；`auto` 模式是纯本地启发式，卡片句式偏固定。
 - 面板数据通道优先走 Connection 的鉴权路由 `/api/biomimetic-memory`，同时保留 `/biomimetic-memory/` 裸路由兜底；裸路由要求 `x-biomimetic-memory: 1` 请求头。
+
+## v0.1.1 修复
+
+- 向量相似度改为 raw cosine，去掉无关文本约 0.5 的底噪。
+- 召回增加 `min_score / min_vector / require_signal` 门槛，绿灯/说话人强信号直通，无关查询返回空。
+- 修复 HTTP/bridge `recall` 走 preview、`reinforce` 不生效的问题；新增只读 `preview` 语义。
+- 核心卡晋升增加 `importance ≥ 6`、`CoreScore ≥ 0.35` 门槛，Tier-0 提示增加单卡 160 字/总量 1200 字预算。
+- 关键词提取去掉“评价一”这类跨词碎片；保留“林北”等短名。
+- 测试从 14 项扩展到 17 项，覆盖无关查询、核心门槛、提示预算和 bridge 加固。
 
 ## 许可证
 

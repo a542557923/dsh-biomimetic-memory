@@ -163,6 +163,44 @@ try {
     assert.ok(recallBody.items.length >= 1)
     assert.ok(recallBody.items[0].score.final_score > 0)
 
+    // HTTP recall must reinforce by default, while preview must stay read-only.
+    const store = await engine.ensureReady()
+    const firstId = recallBody.items[0].id
+    const before = store.getNote(firstId)
+    const recallAgain = await handler(
+      new Request('http://localhost/api/biomimetic-memory', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'recall', platform: 'qq', scope_id: 'group_2', user_id: '7', query: '今晚八点开黑' }),
+      }),
+    )
+    assert.equal((await recallAgain.json()).items.length >= 1, true)
+    const after = store.getNote(firstId)
+    assert.ok(after.strength > before.strength, 'bridge recall must reinforce strength')
+    assert.equal(after.accessCount, before.accessCount + 1)
+
+    const preview = await handler(
+      new Request('http://localhost/api/biomimetic-memory', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'recall', platform: 'qq', scope_id: 'group_2', user_id: '7', query: '今晚八点开黑', preview: true }),
+      }),
+    )
+    assert.equal(preview.status, 200)
+    const afterPreview = store.getNote(firstId)
+    assert.equal(afterPreview.strength, after.strength)
+    assert.equal(afterPreview.accessCount, after.accessCount)
+
+    const irrelevant = await handler(
+      new Request('http://localhost/api/biomimetic-memory', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'recall', platform: 'qq', scope_id: 'group_2', query: '今天天气怎么样', limit: 3, includeRecent: false }),
+      }),
+    )
+    const irrelevantBody = await irrelevant.json()
+    assert.equal(irrelevantBody.items.length, 0, 'unrelated bridge recall must return no cards')
+
     const unknown = await handler(
       new Request('http://localhost/api/biomimetic-memory', {
         method: 'POST',

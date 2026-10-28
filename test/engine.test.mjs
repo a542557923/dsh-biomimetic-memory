@@ -13,6 +13,7 @@ import { extractKeywords, scoreMessage, scanNote } from '../lib/greenlight.js'
 import { createEngine } from '../lib/engine.js'
 import { runMaintenance, autoConsolidate } from '../lib/consolidator.js'
 import { recall } from '../lib/retriever.js'
+import { formatCoreMemories } from '../lib/prompt.js'
 import { ebbinghausRetention } from '../lib/scoring.js'
 
 const dir = mkdtempSync(join(process.cwd(), '.tmp-test-'))
@@ -42,13 +43,17 @@ try {
     const a = embed('倒立洗头 抽卡歪了七七')
     const b = embed('倒立洗头 抽卡歪了七七')
     assert.equal(cosine(a, b), 1)
-    assert.ok(cosine(a, embed('今天天气不错')) < 0.9)
+    assert.ok(cosine(a, embed('今天天气不错')) < 0.25, 'unrelated raw cosine must stay near zero')
+    assert.ok(cosine(embed('阿伟倒立洗头'), embed('阿伟立下倒立洗头的 flag，全群围观。')) > 0.4)
   })
 
   await test('green-light extraction ignores filler and keeps the coined phrase', () => {
     const keywords = extractKeywords('兄弟们我立个flag，说不出金就倒立洗头，赌一包辣条')
     assert.ok(keywords.includes('倒立洗头'), `keywords=${keywords.join(',')}`)
     assert.ok(!keywords.includes('今天'))
+    const named = extractKeywords('@过客家的大肥鱼 评价一下林北')
+    assert.ok(named.includes('林北'), `keywords=${named.join(',')}`)
+    assert.ok(!named.includes('评价一'), `keywords=${named.join(',')}`)
   })
 
   await test('noise gate drops emoji/echo spam and keeps mentions', () => {
@@ -335,6 +340,72 @@ try {
     }
     assert.equal(last.suggestConsolidate, true)
     await engine.close()
+  })
+
+  await test('unrelated queries return no cards once the relevance gate is on', async () => {
+    const engine = createEngine({ dataFile: join(dir, 'gate', 'memory.sqlite'), autoConsolidate: false })
+    await engine.consolidate({
+      platform: 'qq',
+      scopeId: 'group_gate',
+      mode: 'apply',
+      payload: {
+        new_memories: [
+          { content: '阿伟立下倒立洗头的 flag，全群围观。', keywords: ['倒立洗头', '阿伟'], importance: 9 },
+        ],
+      },
+    })
+    const hit = await engine.recallFor({
+      platform: 'qq',
+      scopeId: 'group_gate',
+      query: '阿伟倒立洗头',
+      limit: 3,
+      reinforce: false,
+    })
+    assert.equal(hit.items.length, 1)
+    const miss = await engine.recallFor({
+      platform: 'qq',
+      scopeId: 'group_gate',
+      query: '今天天气怎么样',
+      limit: 3,
+      reinforce: false,
+    })
+    assert.equal(miss.items.length, 0, 'noise floor must not surface an unrelated card')
+    await engine.close()
+  })
+
+  await test('core promotion requires importance and core score', async () => {
+    const engine = createEngine({ dataFile: join(dir, 'core-gate', 'memory.sqlite'), autoConsolidate: false })
+    await engine.consolidate({
+      platform: 'qq',
+      scopeId: 'group_core',
+      mode: 'apply',
+      payload: {
+        new_memories: [
+          { content: '低分日常一', keywords: ['低分一'], importance: 4 },
+          { content: '低分日常二', keywords: ['低分二'], importance: 5 },
+          { content: '低分日常三', keywords: ['低分三'], importance: 5.5 },
+          { content: '重要名场面', keywords: ['名场面'], importance: 7 },
+        ],
+      },
+    })
+    const store = await engine.ensureReady()
+    const core = store.allNotes().filter((note) => note.strategy === 'constant')
+    assert.equal(core.length, 1, `only the qualified card should be core: ${JSON.stringify(core.map((note) => note.importance))}`)
+    assert.equal(core[0].importance, 7)
+    await engine.close()
+  })
+
+  await test('Tier-0 prompt budget truncates long core cards', () => {
+    const long = '很长的记忆内容'.repeat(80)
+    const notes = Array.from({ length: 10 }, (_, index) => ({
+      content: long,
+      importance: 9 - index * 0.1,
+      archived: false,
+    }))
+    const text = formatCoreMemories(notes)
+    assert.ok(text.length <= 1220, `prompt core block too long: ${text.length}`)
+    assert.ok(text.split('\n').length <= 8, 'the core block must stop at the total budget')
+    assert.ok(text.includes('…'))
   })
 } finally {
   try {

@@ -726,6 +726,7 @@ window.__ModuleLoader__.load({
             user_id: recallForm.user_id || undefined,
             query: recallForm.query,
             limit: 5,
+            preview: true,
           })
           setRecallResult(result)
         } catch (actionError) {

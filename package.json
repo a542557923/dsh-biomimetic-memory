@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-biomimetic-memory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "多平台社交角色扮演仿生分层记忆引擎：绿灯唤醒 + 艾宾浩斯遗忘 + 海马体图谱 + 卡片盒链接",
   "license": "MIT",
