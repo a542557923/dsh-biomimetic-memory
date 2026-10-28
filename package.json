@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "description": "多平台社交角色扮演仿生分层记忆引擎：绿灯唤醒 + 艾宾浩斯遗忘 + 海马体图谱 + 卡片盒链接",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a542557923/dsh-biomimetic-memory.git"
+  },
+  "homepage": "https://github.com/a542557923/dsh-biomimetic-memory#readme",
+  "bugs": {
+    "url": "https://github.com/a542557923/dsh-biomimetic-memory/issues"
+  },
   "type": "module",
   "exports": {
     ".": "./index.js",
@@ -14,6 +23,7 @@
     "index.js",
     "client.js",
     "lib/*.js",
+    "lib/*.mjs",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",

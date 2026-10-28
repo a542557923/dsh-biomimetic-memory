@@ -41,9 +41,70 @@
 # 在 Harness 里由 Agent 调用；target 指向本仓库的绝对路径
 plugin_manager install_bundle target="<本仓库绝对路径>"
 ```
-```
 
 安装后在 Web GUI 左侧栏出现鱼形图标，点开即面板。插件行标题为「仿生分层记忆引擎」。
+
+## 分享给其他人
+
+### 方式 A：GitHub 直装（推荐）
+
+把仓库地址发给对方：
+
+```text
+https://github.com/a542557923/dsh-biomimetic-memory
+```
+
+在对方的 DSH 里安装这个 spec：
+
+```text
+github:a542557923/dsh-biomimetic-memory
+```
+
+或直接让对方对 Agent 说：
+
+```text
+帮我安装 plugin_manager install_bundle target="github:a542557923/dsh-biomimetic-memory"
+```
+
+DSH 的插件管理器支持 registry / 绝对路径 / git 地址 / tarball 四种 spec。装完如果提示需要重启，重启 DSH 后再启用 bundle；Client 面板一般刷新页面即可出现。
+
+### 方式 B：ZIP 或本地目录
+
+对方从 GitHub「Download ZIP」解压后，在 DSH 里：
+
+```text
+plugin_manager install_bundle target="<解压后的目录绝对路径>"
+```
+
+### 方式 C：离线 tarball
+
+在仓库里执行：
+
+```powershell
+npm pack
+```
+
+把生成的 `*.tgz` 发给对方，对方安装：
+
+```text
+plugin_manager install_bundle target="<本机 tgz 路径>"
+```
+
+### 方式 D：发布到 npm（可选）
+
+当前包名是 `@local/dsh-biomimetic-memory`，只适合 GitHub/本地分发。要发 npm，需要先改成自己的 scope 并去掉 `private`：
+
+```json
+{
+  "name": "@a542557923/dsh-biomimetic-memory",
+  "private": false,
+  "publishConfig": { "access": "public" }
+}
+```
+
+然后 `npm publish`。对方之后就能按包名安装。
+
+> AstrBot 适配器不通过 DSH 安装：把仓库里的 `astrbot-adapter/` 目录复制到 `<AstrBot>/data/plugins/astrbot_plugin_biomimetic_memory` 即可。记忆数据不会随插件分发，每个人使用自己的本地 SQLite。
 
 ## 数据文件
 
